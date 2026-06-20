@@ -70,5 +70,3 @@ Checks are loaded alphabetically, so prefix with a number to control order.
 
 ## License
 
-MIT
-"# predeploy_check" 
