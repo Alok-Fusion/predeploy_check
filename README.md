@@ -79,5 +79,27 @@ module.exports = { name, run };
 
 Checks are loaded alphabetically, so prefix with a number to control order.
 
+## Testing
+
+The project has a full test suite (49 tests covering all 6 checks) built
+on Node's built-in test runner — no extra dependencies needed.
+
+```bash
+npm test
+```
+
+## Contributing
+
+Found a deploy-only failure that isn't on this list? Open an issue or a
+PR — the project is intentionally narrow right now (six checks), and it
+gets more useful with every real-world gotcha someone adds.
+
+## Author
+
+Built by [Alok Kushwaha](https://github.com/Alok-Fusion) — NLP/ML
+engineer, born out of a real afternoon lost to a deploy failure that
+had nothing to do with the actual code.
+
 ## License
 
+MIT — see [LICENSE](./LICENSE) for details.

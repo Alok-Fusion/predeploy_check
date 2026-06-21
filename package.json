@@ -20,8 +20,16 @@
     "deployment",
     "check"
   ],
-  "author": "",
+  "author": "Alok Kushwaha (https://github.com/Alok-Fusion)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alok-Fusion/predeploy_check.git"
+  },
+  "homepage": "https://github.com/Alok-Fusion/predeploy_check#readme",
+  "bugs": {
+    "url": "https://github.com/Alok-Fusion/predeploy_check/issues"
+  },
   "dependencies": {
     "chalk": "^4.1.2"
   },
