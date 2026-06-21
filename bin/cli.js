@@ -20,6 +20,7 @@ if (args.includes('--help') || args.includes('-h')) {
   Options:
     -h, --help      Show this help message
     -v, --version   Show version number
+    --live          Verify Python wheel availability against PyPI (slower, needs internet)
 
   Checks:
     1. Python + Render:    Rust-compiled deps on unsupported Python versions
@@ -38,9 +39,10 @@ if (args.includes('--version') || args.includes('-v')) {
   process.exit(0);
 }
 
-const projectRoot = path.resolve(args[0] || process.cwd());
+const projectRoot = path.resolve(args.find((a) => !a.startsWith('-')) || process.cwd());
+const options = { live: args.includes('--live') };
 
-runAllChecks(projectRoot).then((exitCode) => {
+runAllChecks(projectRoot, options).then((exitCode) => {
   process.exit(exitCode);
 }).catch((err) => {
   console.error('Fatal error:', err.message);

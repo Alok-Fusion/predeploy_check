@@ -63,9 +63,16 @@ function formatResult(result) {
  * Run all checks against the given project root.
  * Returns exit code: 1 if any ❌, 0 otherwise.
  */
-async function runAllChecks(projectRoot) {
+async function runAllChecks(projectRoot, options = {}) {
   console.log('');
   console.log(chalk.bold.underline(`  predeploy-check`) + chalk.dim(`  scanning ${projectRoot}`));
+  if (options.live) {
+    if (typeof fetch === 'function') {
+      console.log(chalk.dim('  live mode: verifying wheel availability against PyPI (requires internet)'));
+    } else {
+      console.log(chalk.yellow('  live mode requested, but this Node.js version has no global fetch (needs Node 18+) — falling back to static checks'));
+    }
+  }
   console.log(chalk.dim('  ─'.repeat(30)));
   console.log('');
 
@@ -77,7 +84,7 @@ async function runAllChecks(projectRoot) {
 
   for (const check of checks) {
     try {
-      const results = await check.run(projectRoot);
+      const results = await check.run(projectRoot, options);
 
       // A check can return a single result or an array of results
       const resultArray = Array.isArray(results) ? results : [results];

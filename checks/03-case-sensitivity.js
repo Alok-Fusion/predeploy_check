@@ -131,19 +131,31 @@ function resolveImport(importPath, fromFile, filenameCache) {
     // Handle directory/index patterns
     if (candidate.includes('/')) {
       const [subDir, indexFile] = candidate.split('/');
-      const subDirPath = path.join(dir, subDir);
-      const subFiles = filenameCache.get(subDirPath);
 
-      if (subFiles) {
-        // Check if directory name itself has a case mismatch
-        if (dirFiles) {
-          for (const actual of dirFiles) {
-            if (actual.toLowerCase() === subDir.toLowerCase() && actual !== subDir) {
-              return { expected: subDir, actual, type: 'directory' };
-            }
+      // Find the directory on disk regardless of the casing used in the
+      // import — a mismatched cache-key lookup here would silently skip
+      // the whole branch and miss a real case mismatch.
+      let actualSubDirName = null;
+      if (dirFiles) {
+        for (const actual of dirFiles) {
+          if (actual.toLowerCase() === subDir.toLowerCase()) {
+            actualSubDirName = actual;
+            break;
           }
         }
-        // Check index file inside the directory
+      }
+
+      if (actualSubDirName === null) {
+        continue; // No directory by this name exists at all, in any casing
+      }
+
+      if (actualSubDirName !== subDir) {
+        return { expected: subDir, actual: actualSubDirName, type: 'directory' };
+      }
+
+      // Directory casing matched — now check the index file inside it
+      const subFiles = filenameCache.get(path.join(dir, actualSubDirName));
+      if (subFiles) {
         for (const actual of subFiles) {
           if (actual.toLowerCase() === indexFile.toLowerCase() && actual !== indexFile) {
             return { expected: indexFile, actual, type: 'file' };

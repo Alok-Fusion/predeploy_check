@@ -12,7 +12,7 @@ No install required — just run it in your project directory.
 
 | # | Check | Targets | Status |
 |---|-------|---------|--------|
-| 1 | **Python + Render** | Rust-compiled deps (pydantic, fastapi, orjson…) on Python ≥ 3.13 | ⚠️ Warn |
+| 1 | **Python + Render** | Rust-compiled deps (pydantic, fastapi, orjson…) on Python ≥ 3.13 — add `--live` to verify against PyPI instead of guessing | ⚠️ Warn / ❌ Fail (live) |
 | 2 | **ESLint + Vercel** | Mismatched eslint / eslint-config-next versions; deprecated `ignoreDuringBuilds` on Next 16+ | ❌ Fail / ⚠️ Warn |
 | 3 | **Case Sensitivity** | Import paths that differ in casing from actual filenames (breaks on Linux) | ⚠️ Warn |
 | 4 | **Missing Engines** | No `"engines"` field in package.json | ⚠️ Warn |
@@ -37,9 +37,20 @@ npx predeploy-check
 # Scan a specific project
 npx predeploy-check ./my-project
 
+# Verify Python wheel availability live against PyPI, instead of
+# relying on the built-in known-package list (slower, needs internet)
+npx predeploy-check --live
+
 # Show help
 npx predeploy-check --help
 ```
+
+By default, the Python + Render check warns based on a built-in list of
+packages known to have Rust-compiled components — it's instant and works
+offline, but the list can go stale as packages ship new wheels over time.
+Pass `--live` to query PyPI directly for the exact pinned version in your
+`requirements.txt`, which turns a "might be missing" warning into a
+confirmed pass or fail.
 
 ## Adding custom checks
 
