@@ -1,6 +1,6 @@
 # predeploy-check
 
-> Catch deployment failures **before** you push. Scans your project for known Render & Vercel pitfalls.
+> Stop deployment failures before they happen. `predeploy-check` scans your project for the most common deployment mistakes across Vercel and Render, including missing environment variables, case-sensitive imports, Python wheel compatibility, start command issues, and more — before you push your code.
 
 ```bash
 npx predeploy-check
@@ -21,12 +21,19 @@ No install required — just run it in your project directory.
 
 ## Output
 
-Clean, colored terminal output with:
+Two output modes, same underlying checks:
+
+**Terminal (default)** — clean, colored output with:
 - ✅ / ⚠️ / ❌ per check
 - File and line context
 - One-line suggested fix
 
-Exit code `1` if any ❌ failures, `0` otherwise.
+**JSON** (`--json`) — a single structured JSON object on stdout, with no
+colors or decoration, designed for CI dashboards, GitHub bots, editor
+extensions, or any tool that needs to parse the results programmatically
+rather than read them. See [JSON output](#json-output) below for the shape.
+
+Exit code `1` if any ❌ failures, `0` otherwise — in both output modes.
 
 ## Usage
 
@@ -41,6 +48,12 @@ npx predeploy-check ./my-project
 # relying on the built-in known-package list (slower, needs internet)
 npx predeploy-check --live
 
+# Output machine-readable JSON instead of colored terminal text
+npx predeploy-check --json
+
+# Combine flags freely
+npx predeploy-check --live --json ./my-project
+
 # Show help
 npx predeploy-check --help
 ```
@@ -51,6 +64,41 @@ offline, but the list can go stale as packages ship new wheels over time.
 Pass `--live` to query PyPI directly for the exact pinned version in your
 `requirements.txt`, which turns a "might be missing" warning into a
 confirmed pass or fail.
+
+## JSON output
+
+`--json` prints a single JSON object to stdout, with nothing else mixed
+in — safe to pipe directly into `JSON.parse()`, `jq`, or any tool that
+expects clean machine-readable output:
+
+```bash
+npx predeploy-check --json | jq '.summary'
+```
+
+Shape:
+
+```json
+{
+  "tool": "predeploy-check",
+  "version": "1.2.0",
+  "projectRoot": "/path/to/project",
+  "live": false,
+  "summary": { "passed": 4, "warnings": 1, "failed": 1, "skipped": 0 },
+  "willLikelyFail": true,
+  "checks": [
+    {
+      "check": "Render Start Command: missing start configuration",
+      "status": "fail",
+      "message": "...",
+      "fix": "Add a \"start\" script to package.json...",
+      "details": [ { "file": "package.json", "message": "..." } ]
+    }
+  ]
+}
+```
+
+`--help --json` and `--version --json` also return structured JSON
+instead of plain text, for tools that want to introspect the CLI itself.
 
 ## Adding custom checks
 
