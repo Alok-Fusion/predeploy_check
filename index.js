@@ -3,6 +3,7 @@
 const chalk = require('chalk');
 const path = require('path');
 const fs = require('fs');
+const { loadConfig, isCheckEnabled, getCheckOptions } = require('./config');
 
 // Dynamically load all check modules from /checks/
 const checksDir = path.join(__dirname, 'checks');
@@ -14,6 +15,7 @@ const checks = checkFiles.map((f) => {
   const mod = require(path.join(checksDir, f));
   return {
     name: mod.name || f.replace('.js', ''),
+    filename: f,
     run: mod.run,
   };
 });
@@ -66,11 +68,41 @@ function formatResult(result) {
  * two output modes can never drift out of sync with each other.
  */
 async function collectResults(projectRoot, options = {}) {
+  // Load config once upfront — fail fast with a clear error if it's invalid
+  let config;
+  try {
+    config = loadConfig(projectRoot);
+  } catch (err) {
+    return [{
+      checkName: 'Config',
+      status: 'error',
+      message: err.message,
+    }];
+  }
+
   const allResults = [];
 
   for (const check of checks) {
+    // Skip checks disabled in predeploy.config.js
+    if (!isCheckEnabled(config, check.filename)) {
+      allResults.push({
+        checkName: check.name,
+        status: 'skip',
+        message: `${check.name} — disabled in predeploy.config.js`,
+      });
+      continue;
+    }
+
+    // Merge CLI options with check-specific config options
+    // CLI flags (e.g. --live) always win over config-file options
+    const checkOptions = {
+      ...getCheckOptions(config, check.filename),
+      ...options,
+      config,
+    };
+
     try {
-      const results = await check.run(projectRoot, options);
+      const results = await check.run(projectRoot, checkOptions);
       const resultArray = Array.isArray(results) ? results : [results];
 
       for (const result of resultArray) {
@@ -106,9 +138,12 @@ function summarize(allResults) {
  * Print results to the terminal with colors, icons, and a summary —
  * the original human-readable output format.
  */
-function printTerminalOutput(projectRoot, options, allResults, summary) {
+function printTerminalOutput(projectRoot, options, allResults, summary, config) {
   console.log('');
   console.log(chalk.bold.underline(`  predeploy-check`) + chalk.dim(`  scanning ${projectRoot}`));
+  if (config && config.loaded) {
+    console.log(chalk.dim('  config: predeploy.config.js loaded'));
+  }
   if (options.live) {
     if (typeof fetch === 'function') {
       console.log(chalk.dim('  live mode: verifying wheel availability against PyPI (requires internet)'));
@@ -150,15 +185,13 @@ function printTerminalOutput(projectRoot, options, allResults, summary) {
 
 /**
  * Print results as a single machine-readable JSON object to stdout.
- * No colors, no decoration — designed for CI dashboards, GitHub bots,
- * editor extensions, or anything else that needs to parse the output
- * programmatically rather than read it.
  */
-function printJsonOutput(projectRoot, options, allResults, summary) {
+function printJsonOutput(projectRoot, options, allResults, summary, config) {
   const output = {
     tool: 'predeploy-check',
     version: require('./package.json').version,
     projectRoot,
+    configFile: config && config.loaded ? config.configPath : null,
     live: Boolean(options.live),
     summary: {
       passed: summary.counts.pass,
@@ -184,13 +217,20 @@ function printJsonOutput(projectRoot, options, allResults, summary) {
  * Returns exit code: 1 if any ❌, 0 otherwise.
  */
 async function runAllChecks(projectRoot, options = {}) {
+  let config;
+  try {
+    config = loadConfig(projectRoot);
+  } catch (err) {
+    config = null;
+  }
+
   const allResults = await collectResults(projectRoot, options);
   const summary = summarize(allResults);
 
   if (options.json) {
-    printJsonOutput(projectRoot, options, allResults, summary);
+    printJsonOutput(projectRoot, options, allResults, summary, config);
   } else {
-    printTerminalOutput(projectRoot, options, allResults, summary);
+    printTerminalOutput(projectRoot, options, allResults, summary, config);
   }
 
   return summary.exitCode;

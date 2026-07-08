@@ -100,7 +100,64 @@ Shape:
 `--help --json` and `--version --json` also return structured JSON
 instead of plain text, for tools that want to introspect the CLI itself.
 
-## Adding custom checks
+## Configuration
+
+Create a `predeploy.config.js` file in your project root to customise
+which checks run and how they behave. The file is optional — without it,
+all checks run with their default settings.
+
+```js
+// predeploy.config.js
+module.exports = {
+  // Disable specific checks by their ID
+  checks: {
+    'python-render':    true,
+    'eslint-vercel':    true,
+    'case-sensitivity': true,
+    'missing-engines':  true,
+    'env-vars':         true,
+    'render-start':     false, // disabled — we use a custom start setup
+  },
+
+  // Ignore specific files or directories across all checks
+  ignore: [
+    'legacy/',
+    'scripts/old-deploy.js',
+  ],
+
+  // Pass extra options to specific checks
+  options: {
+    'env-vars': {
+      // Check additional env files beyond .env and .env.example
+      envFiles: ['.env.production', '.env.staging'],
+    },
+    'python-render': {
+      // Add custom Rust-compiled packages to the known-package list
+      rustPackages: ['my-custom-package'],
+    },
+  },
+};
+```
+
+**Check IDs** (use these in the `checks` and `options` fields):
+
+| ID | Check |
+|----|-------|
+| `python-render` | Python + Render |
+| `eslint-vercel` | ESLint + Vercel |
+| `case-sensitivity` | Case Sensitivity |
+| `missing-engines` | Missing Engines |
+| `env-vars` | Env Var Check |
+| `render-start` | Render Start Cmd |
+
+Partial configs are fine — you only need to specify the checks or options
+you want to change. Everything else defaults to enabled.
+
+When a config file is found, the tool shows a notice at the top of the
+output confirming it was loaded. Disabled checks appear as ⏭️ skipped
+with a note explaining why, rather than silently disappearing.
+
+
 
 Create a new file in the `checks/` folder:
 
