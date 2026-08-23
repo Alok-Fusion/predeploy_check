@@ -1,6 +1,6 @@
 {
   "name": "predeploy-check",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Scan a project folder and flag known deployment-failure patterns for Render and Vercel before you push.",
   "main": "index.js",
   "bin": {
