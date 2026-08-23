@@ -1,6 +1,6 @@
 # predeploy-check
 
-> Stop deployment failures before they happen. `predeploy-check` scans your project for the most common deployment mistakes across Vercel and Render — missing environment variables, case-sensitive imports, Python wheel compatibility, start command issues, and more — before you push your code.
+> Catch deployment failures before they happen. `predeploy-check` scans your project for the most common reasons deploys fail across Vercel, Render, and Railway — before you push your code.
 
 [![npm version](https://img.shields.io/npm/v/predeploy-check.svg)](https://www.npmjs.com/package/predeploy-check)
 [![npm downloads](https://img.shields.io/npm/dw/predeploy-check.svg)](https://www.npmjs.com/package/predeploy-check)
@@ -31,14 +31,17 @@ No install required. Run it in any project directory before pushing.
 
 ## What it checks
 
-| # | Check | What it catches | Severity |
-|---|-------|----------------|----------|
-| 1 | **Python + Render** | Rust-compiled dependencies (pydantic, fastapi, orjson…) on Python ≥ 3.13 without prebuilt wheels. Add `--live` to verify against PyPI directly. | ⚠️ Warn / ❌ Fail |
-| 2 | **ESLint + Vercel** | Mismatched `eslint` / `eslint-config-next` versions; deprecated `ignoreDuringBuilds` on Next.js 16+ | ❌ Fail / ⚠️ Warn |
-| 3 | **Case Sensitivity** | Import paths that differ in casing from actual filenames — works locally on Windows/Mac, breaks silently on Vercel's Linux filesystem | ⚠️ Warn |
-| 4 | **Missing Engines** | No `"engines"` field in `package.json` — platform may default to an unexpected Node.js version | ⚠️ Warn |
-| 5 | **Env Var Check** | `process.env.X` references in code not declared in `.env` or `.env.example` | ⚠️ Warn |
-| 6 | **Render Start Cmd** | No `"start"` script, no Procfile, and no `render.yaml` start command | ❌ Fail |
+| # | Check | Platform | What it catches | Severity |
+|---|-------|----------|----------------|----------|
+| 1 | **Python + Render** | Render | Rust-compiled dependencies (pydantic, fastapi, orjson…) on Python ≥ 3.13 without prebuilt wheels. Add `--live` to verify against PyPI directly. | ⚠️ Warn / ❌ Fail |
+| 2 | **ESLint + Vercel** | Vercel | Mismatched `eslint` / `eslint-config-next` versions; deprecated `ignoreDuringBuilds` on Next.js 16+ | ❌ Fail / ⚠️ Warn |
+| 3 | **Case Sensitivity** | Vercel | Import paths that differ in casing from actual filenames — works locally on Windows/Mac, breaks silently on Vercel's Linux filesystem | ⚠️ Warn |
+| 4 | **Missing Engines** | All | No `"engines"` field in `package.json` — platform may default to an unexpected Node.js version | ⚠️ Warn |
+| 5 | **Env Var Check** | All | `process.env.X` references in code not declared in `.env` or `.env.example` | ⚠️ Warn |
+| 6 | **Render Start Cmd** | Render | No `"start"` script, no Procfile, and no `render.yaml` start command | ❌ Fail |
+| 7 | **Railway** | Railway | Hardcoded ports, invalid builder values, missing Nixpacks build plan, unhandled monorepo structure, missing start command | ❌ Fail / ⚠️ Warn |
+
+Railway checks only run when a `railway.toml`, `railway.json`, or `nixpacks.toml` is detected — they're skipped silently on Render/Vercel-only projects.
 
 ---
 
@@ -96,8 +99,12 @@ Clean, colored output with a status icon per check, file and line context, and a
     package.json
     → No "start" script in "scripts"
     💡 Fix: Add a "start" script or create a Procfile
+❌ Railway — hardcoded port 3000 detected
+    server.js (line 4)
+    → Railway injects the port via $PORT at runtime
+    💡 Fix: Replace 3000 with process.env.PORT || 3000
 
-  Summary: 1 passed · 1 warning · 1 failed · 2 skipped
+  Summary: 1 passed · 1 warning · 2 failed · 1 skipped
 
   Deploy will likely fail. Fix ❌ issues above.
 ```
@@ -128,7 +135,7 @@ Output shape:
 ```json
 {
   "tool": "predeploy-check",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "projectRoot": "/path/to/project",
   "configFile": "/path/to/predeploy.config.js",
   "live": false,
@@ -136,17 +143,22 @@ Output shape:
     "passed": 3,
     "warnings": 1,
     "failed": 1,
-    "skipped": 1
+    "skipped": 2
   },
   "willLikelyFail": true,
   "checks": [
     {
-      "check": "Render Start Command: missing start configuration",
+      "check": "Railway: deployment configuration",
       "status": "fail",
-      "message": "Render Start Command: missing start configuration — no start command found",
-      "fix": "Add a \"start\" script to package.json or create a Procfile",
+      "message": "Railway: deployment configuration — 1 potential issue detected",
+      "fix": "Fix the ❌ issues above before deploying to Railway",
       "details": [
-        { "file": "package.json", "message": "No \"start\" script in \"scripts\"" }
+        {
+          "file": "server.js",
+          "line": 4,
+          "message": "Hardcoded port 3000 detected — Railway injects the port via $PORT at runtime",
+          "fix": "Replace 3000 with process.env.PORT || 3000"
+        }
       ]
     }
   ]
@@ -172,6 +184,7 @@ module.exports = {
     'missing-engines':  true,
     'env-vars':         true,
     'render-start':     false, // disabled — using a custom start setup
+    'railway':          true,
   },
 
   // Ignore specific files or directories across all checks
@@ -198,14 +211,15 @@ module.exports = {
 
 ### Check IDs
 
-| ID | Check |
-|----|-------|
-| `python-render` | Python + Render |
-| `eslint-vercel` | ESLint + Vercel |
-| `case-sensitivity` | Case Sensitivity |
-| `missing-engines` | Missing Engines |
-| `env-vars` | Env Var Check |
-| `render-start` | Render Start Cmd |
+| ID | Platform | Check |
+|----|----------|-------|
+| `python-render` | Render | Python + Render |
+| `eslint-vercel` | Vercel | ESLint + Vercel |
+| `case-sensitivity` | Vercel | Case Sensitivity |
+| `missing-engines` | All | Missing Engines |
+| `env-vars` | All | Env Var Check |
+| `render-start` | Render | Render Start Cmd |
+| `railway` | Railway | Railway deployment |
 
 When a config file is detected, a notice appears at the top of the output confirming it was loaded. Disabled checks appear as ⏭️ skipped with a clear explanation rather than silently disappearing.
 
@@ -216,7 +230,7 @@ When a config file is detected, a notice appears at the top of the output confir
 Create a new file in the `checks/` folder. Checks are loaded alphabetically, so prefix with a number to control execution order.
 
 ```js
-// checks/07-my-check.js
+// checks/08-my-check.js
 'use strict';
 
 const name = 'My Custom Check: description';
@@ -247,7 +261,7 @@ The project has a full automated test suite built on Node's built-in test runner
 npm test
 ```
 
-Current coverage: **82 tests** across all 6 checks, the config system, and the JSON output layer — including end-to-end CLI integration tests that spawn the tool as a real subprocess.
+Current coverage: **100 tests** across all 7 checks, the config system, and the JSON output layer — including end-to-end CLI integration tests that spawn the tool as a real subprocess.
 
 ---
 
