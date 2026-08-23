@@ -14,6 +14,7 @@ const VALID_CHECK_IDS = [
   'missing-engines',
   'env-vars',
   'render-start',
+  'railway',
 ];
 
 /**
